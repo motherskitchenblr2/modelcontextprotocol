@@ -422,6 +422,7 @@ describe("Transport Integration Tests", () => {
             query: "test",
             search_recency_filter: "week",
             search_domain_filter: ["wikipedia.org", "-reddit.com"],
+            search_type: "fast",
           },
         });
 
@@ -433,6 +434,7 @@ describe("Transport Integration Tests", () => {
           query: "test",
           search_recency_filter: "week",
           search_domain_filter: ["wikipedia.org", "-reddit.com"],
+          search_type: "fast",
         });
       } finally {
         await client.close();

@@ -9,7 +9,9 @@ import type {
   AgentCallHooks,
   ApiKeyProvider,
   PerplexityServerOptions,
+  SearchOptions,
   SearchResponse,
+  SearchType,
   UndiciRequestOptions
 } from "./types.js";
 import { AgentResponseSchema, SearchResponseSchema } from "./validation.js";
@@ -18,7 +20,7 @@ export type { ApiKeyProvider, PerplexityServerOptions } from "./types.js";
 
 const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
 const PERPLEXITY_BASE_URL = process.env.PERPLEXITY_BASE_URL || "https://api.perplexity.ai";
-const VERSION = "1.2.1";
+const VERSION = "1.3.0";
 
 // Agent API presets backing each tool: https://docs.perplexity.ai/docs/agent-api/presets
 export const ASK_PRESET = "fast";
@@ -481,7 +483,7 @@ export async function performSearch(
   maxResults: number = 10,
   maxTokensPerPage: number = 1024,
   country?: string,
-  filters?: Pick<AgentToolOptions, "search_recency_filter" | "search_domain_filter">,
+  filters?: SearchOptions,
   serviceOrigin?: string,
   apiKey?: ApiKeyProvider,
 ): Promise<string> {
@@ -492,6 +494,7 @@ export async function performSearch(
     ...(country && { country }),
     ...(filters?.search_recency_filter && { search_recency_filter: filters.search_recency_filter }),
     ...(filters?.search_domain_filter && { search_domain_filter: filters.search_domain_filter }),
+    ...(filters?.search_type && { search_type: filters.search_type }),
   };
 
   const response = await makeApiRequest("search", body, serviceOrigin, undefined, apiKey);
@@ -547,7 +550,7 @@ export function createPerplexityServer(serviceOrigin?: string, serverOptions?: P
     {
       instructions:
         "Perplexity AI server for web-grounded search, research, and reasoning, backed by the Perplexity Agent API. " +
-        "Use perplexity_search for finding URLs, facts, and recent news. Supports recency filters and domain restrictions. " +
+        "Use perplexity_search for finding URLs, facts, and recent news. Supports recency filters, domain restrictions, and fast search. " +
         "Use perplexity_ask for quick AI-answered questions with citations. Supports recency filters, domain restrictions, and search context size control. " +
         "Use perplexity_research for in-depth multi-source investigation (slow, can take minutes). " +
         "Use perplexity_reason for complex analysis requiring step-by-step logic. Supports recency filters, domain restrictions, and search context size control. " +
@@ -727,6 +730,8 @@ export function createPerplexityServer(serviceOrigin?: string, serverOptions?: P
       .describe("ISO 3166-1 alpha-2 country code for regional results (e.g., 'US', 'GB')"),
     search_recency_filter: searchRecencyFilterField,
     search_domain_filter: searchDomainFilterField,
+    search_type: z.enum(["web", "fast"]).optional()
+      .describe("Search backend. 'web' (default) is the standard web search. 'fast' is lower latency and lower cost; prefer it for routine lookups inside agent loops, and keep 'web' for rare or ambiguous questions."),
   };
 
   const searchOutputSchema = {
@@ -740,7 +745,7 @@ export function createPerplexityServer(serviceOrigin?: string, serverOptions?: P
       description: "Search the web and return a ranked list of results with titles, URLs, snippets, and dates. " +
         "Best for: finding specific URLs, checking recent news, verifying facts, discovering sources. " +
         "Returns formatted results (title, URL, snippet, date) with no AI synthesis. " +
-        "Supports recency filters and domain restrictions. " +
+        "Supports recency filters, domain restrictions, and a lower-latency fast search mode. " +
         "For AI-generated answers with citations, use perplexity_ask instead.",
       inputSchema: searchInputSchema as any,
       outputSchema: searchOutputSchema as any,
@@ -752,20 +757,22 @@ export function createPerplexityServer(serviceOrigin?: string, serverOptions?: P
       },
     },
     async (args: any) => {
-      const { query, max_results, max_tokens_per_page, country, search_recency_filter, search_domain_filter } = args as {
+      const { query, max_results, max_tokens_per_page, country, search_recency_filter, search_domain_filter, search_type } = args as {
         query: string;
         max_results?: number;
         max_tokens_per_page?: number;
         country?: string;
         search_recency_filter?: "hour" | "day" | "week" | "month" | "year";
         search_domain_filter?: string[];
+        search_type?: SearchType;
       };
       const maxResults = typeof max_results === "number" ? max_results : 10;
       const maxTokensPerPage = typeof max_tokens_per_page === "number" ? max_tokens_per_page : 1024;
       const countryCode = typeof country === "string" ? country : undefined;
-      const filters = {
+      const filters: SearchOptions = {
         ...(search_recency_filter && { search_recency_filter }),
         ...(search_domain_filter && { search_domain_filter }),
+        ...(search_type && { search_type }),
       };
 
       const result = await performSearch(query, maxResults, maxTokensPerPage, countryCode, filters, serviceOrigin, serverOptions?.apiKey);

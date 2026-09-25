@@ -86,6 +86,12 @@ export interface SearchRequestBody {
   country?: string;
 }
 
+export type SearchType = "web" | "fast";
+
+export interface SearchOptions extends Pick<AgentToolOptions, "search_recency_filter" | "search_domain_filter"> {
+  search_type?: SearchType;
+}
+
 export interface AgentToolOptions {
   search_recency_filter?: "hour" | "day" | "week" | "month" | "year";
   search_domain_filter?: string[];

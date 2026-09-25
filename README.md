@@ -153,7 +153,7 @@ The server will be accessible at `http://localhost:8080/mcp`
 ## Available Tools
 
 ### **perplexity_search**
-Direct web search using the Perplexity Search API. Returns ranked search results with metadata, perfect for finding current information. Supports recency filters (`search_recency_filter`) and domain restrictions (`search_domain_filter`).
+Direct web search using the Perplexity Search API. Returns ranked search results with metadata, perfect for finding current information. Supports recency filters (`search_recency_filter`), domain restrictions (`search_domain_filter`), and [Fast Search](https://docs.perplexity.ai/docs/search/fast-search) (`search_type: "fast"`) for lower latency and cost.
 
 ### **perplexity_ask**
 General-purpose conversational AI with real-time web search, backed by the Agent API `fast` preset. Great for quick questions and everyday searches.
